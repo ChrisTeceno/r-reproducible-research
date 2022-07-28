@@ -1,0 +1,110 @@
+---
+title: "course project 1"
+author: "Chris Teceno"
+date: '2022-07-28'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Assignment Instructions
+1. Code for reading in the dataset and/or processing the data
+2. Histogram of the total number of steps taken each day
+3. Mean and median number of steps taken each day
+4. Time series plot of the average number of steps taken
+5. The 5-minute interval that, on average, contains the maximum number of steps
+6. Code to describe and show a strategy for imputing missing data
+7. Histogram of the total number of steps taken each day after missing values are imputed
+8. Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
+9. All of the R code needed to reproduce the results (numbers, plots, etc.) in the report
+
+## 1. Code for reading in the dataset and/or processing the data
+```{r}
+setwd("/Users/teceno/Desktop/r-reproducible-research/course-project-1")
+activity<-read.csv("activity.csv")
+library(lubridate)
+# make date a date object
+activity$date<-ymd(activity$date)
+#fill na with 0
+activity[is.na(activity)] <-0
+```
+
+## 2. Histogram of the total number of steps taken each day
+```{r}
+#import ggplot
+library(ggplot2)
+#make df with daily step total
+dailySum <-data.frame(tapply(activity$steps,activity$date,sum,na.rm=TRUE))
+#change column name
+names(dailySum)[[1]]<-"TotalSteps"
+qplot(dailySum$TotalSteps,geom="histogram",xlab="Total Steps",ylab="Counts",main="Total Steps Historgram")
+```
+
+## 3. Mean and median number of steps taken each day
+```{r, include=FALSE}
+library(dplyr)
+```
+```{r}
+daily <- activity %>% group_by(date) %>% summarise(
+        total_steps = sum(steps), 
+        mean_steps = mean(steps),
+        median_steps =median(steps))
+daily
+```
+
+## 4. Time series plot of the average number of steps taken
+```{r}
+plot <- ggplot(daily,aes(x = daily$'date',y = daily$mean_steps))+
+    geom_line(size=1)+
+    scale_x_date()+
+    ylab("Average steps")+
+    xlab("Date")+
+    ggtitle("Average steps per day")
+plot
+```
+
+## 5. The 5-minute interval that, on average, contains the maximum number of steps
+```{r}
+# get the mean per interval
+intervals <-aggregate(data = activity,steps~interval, FUN="mean")
+# sort descending and return the first row
+intervals[order(-intervals$steps),][1,]
+```
+
+## 6. Code to describe and show a strategy for imputing missing data
+```{r}
+# this was done above however, there are several rows where
+# steps are na, it can be assumed there is 0 data here. since it is not a # large portion of the data set I put it as 0. another option is to fill # the interval with the mean or median for that interval from the total  # dataset.
+
+#load data and count na's
+temp<-read.csv("activity.csv")
+sum(is.na(temp$steps)) #2304
+#percent of dataframe
+sum(is.na(temp$steps))/dim(temp)[1] # 13%
+#fill na with 0
+temp[is.na(temp)] <-0
+```
+
+## 7. Histogram of the total number of steps taken each day after missing values are imputed
+```{r}
+dailySum <-data.frame(tapply(activity$steps,activity$date,sum))
+#change column name
+names(dailySum)[[1]]<-"TotalSteps"
+qplot(dailySum$TotalSteps,geom="histogram",xlab="Total Steps",ylab="Counts",main="Total Steps Historgram")
+```
+
+## 8. Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
+```{r}
+# add label for weekday/weekend
+activity$weekday <- ifelse(!wday(activity$date) %in% c(1,7),                activity$weekday <- "weekday", 
+    activity$weekday <- "weekend")
+#group_by interval/weekday and get mean steps
+intervals_mod <- activity %>% group_by(interval,weekday) %>% summarise(
+     mean_steps = mean(steps))
+#make plot
+qplot(mean_steps, interval, data = intervals_mod)+
+  facet_wrap(~weekday)+
+  ggtitle("Average steps per interval: weekday vs weekend")
+```
+
